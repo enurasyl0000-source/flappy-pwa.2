@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flappy Bird PWA</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body { margin:0; display:flex; flex-direction:column; align-items:center; font-family:sans-serif; background:#70c5ce; }
+    canvas { background:#70c5ce; display:block; margin-top:10px; border:2px solid #000; }
+    #controls { margin:10px; background:#fff; padding:10px; border-radius:8px; }
+    label { display:block; margin:5px 0; }
+  </style>
+</head>
+<body>
+  <h1>Flappy Bird PWA</h1>
+  <div id="controls">
+    <label>Gravity: <input type="range" id="gravity" min="0.1" max="1" step="0.01" value="0.25"></label>
+    <label>Jump Force: <input type="range" id="jump" min="-10" max="-2" step="0.1" value="-4.6"></label>
+    <label>Pipe Speed: <input type="range" id="speed" min="1" max="5" step="0.1" value="2.5"></label>
+    <label>Pipe Gap: <input type="range" id="gap" min="80" max="200" step="5" value="120"></label>
+    <label>Start Y: <input type="range" id="startY" min="50" max="400" step="10" value="200"></label>
+    <button id="preset">Classic Flappy</button>
+    <button id="restart">Restart</button>
+  </div>
+  <canvas id="gameCanvas" width="320" height="480"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let gravity = 0.25, jump = -4.6, pipeSpeed = 2.5, pipeGap = 120, startY = 200;
+    let bird, pipes, score, highScore;
+
+    function resetGame() {
+      bird = { x:50, y:startY, vy:0, size:20 };
+      pipes = [];
+      score = 0;
+      highScore = localStorage.getItem("highScore") || 0;
+    }
+
+    function drawBird() {
+      ctx.fillStyle = "yellow";
+      ctx.beginPath();
+      ctx.arc(bird.x, bird.y, bird.size/2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    function drawPipes() {
+      ctx.fillStyle = "green";
+      for (let p of pipes) {
+        ctx.fillRect(p.x, 0, p.w, p.top);
+        ctx.fillRect(p.x, p.top + pipeGap, p.w, canvas.height - (p.top + pipeGap));
+      }
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "#000";
+      ctx.font = "20px Arial";
+      ctx.fillText("Score: " + score, 10, 25);
+      ctx.fillText("Best: " + highScore, 10, 50);
+    }
+
+    function update() {
+      bird.vy += gravity;
+      bird.y += bird.vy;
+
+      if (bird.y + bird.size/2 > canvas.height) resetGame();
+
+      if (pipes.length === 0 || pipes[pipes.length-1].x < 200) {
+        let top = Math.random()*200+50;
+        pipes.push({ x:canvas.width, w:40, top });
+      }
+
+      for (let p of pipes) {
+        p.x -= pipeSpeed;
+        if (p.x + p.w < 0) {
+          pipes.shift();
+          score++;
+          if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("highScore", highScore);
+          }
+        }
+        if (bird.x + bird.size/2 > p.x && bird.x - bird.size/2 < p.x + p.w &&
+            (bird.y - bird.size/2 < p.top || bird.y + bird.size/2 > p.top + pipeGap)) {
+          resetGame();
+        }
+      }
+    }
+
+    function loop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      update();
+      drawBird();
+      drawPipes();
+      drawScore();
+      requestAnimationFrame(loop);
+    }
+
+    document.addEventListener("keydown", e => { if (e.code === "Space") bird.vy = jump; });
+    canvas.addEventListener("click", () => { bird.vy = jump; });
+
+    document.getElementById("gravity").oninput = e => gravity = parseFloat(e.target.value);
+    document.getElementById("jump").oninput = e => jump = parseFloat(e.target.value);
+    document.getElementById("speed").oninput = e => pipeSpeed = parseFloat(e.target.value);
+    document.getElementById("gap").oninput = e => pipeGap = parseInt(e.target.value);
+    document.getElementById("startY").oninput = e => startY = parseInt(e.target.value);
+    document.getElementById("preset").onclick = () => { gravity=0.25; jump=-4.6; pipeSpeed=2.5; pipeGap=120; startY=200; };
+    document.getElementById("restart").onclick = resetGame;
+
+    resetGame();
+    loop();
+  </script>
+</body>
+</html>
